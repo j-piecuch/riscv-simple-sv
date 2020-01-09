@@ -125,10 +125,19 @@
 `define CTL_ALU_OP_IMM 2'b11
 
 // Register data sources
+`ifdef PIPELINE
+`define CTL_WRITEBACK_EARLY 1'b0
+`define CTL_WRITEBACK_DATA  1'b1
+
+`define CTL_EARLY_ALU 2'b00
+`define CTL_EARLY_PC4 2'b01
+`define CTL_EARLY_IMM 2'b10
+`else
 `define CTL_WRITEBACK_ALU   3'b000
 `define CTL_WRITEBACK_DATA  3'b001
 `define CTL_WRITEBACK_PC4   3'b010
 `define CTL_WRITEBACK_IMM   3'b011
+`endif
 
 // ALU 1st operand source
 `define CTL_ALU_A_RS1   1'b0

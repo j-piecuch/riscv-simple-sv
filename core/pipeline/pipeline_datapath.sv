@@ -35,7 +35,8 @@ module pipeline_datapath (
     input _regfile_write_enable,
     input _alu_operand_a_select,
     input _alu_operand_b_select,
-    input [2:0] _reg_writeback_select,
+    input [1:0] _early_result_select,
+    input _reg_writeback_select,
     input [1:0] next_pc_select,
     input [4:0] _alu_function,
     input _read_enable,
@@ -55,11 +56,15 @@ module pipeline_datapath (
     logic alu_operand_a_select[PL_ID:PL_EX];
     logic alu_operand_b_select[PL_ID:PL_EX];
     logic [4:0] alu_function[PL_ID:PL_EX];
-    logic [2:0] reg_writeback_select[PL_ID:PL_WB];
+    logic reg_writeback_select[PL_ID:PL_WB];
     logic [2:0] data_mem_format[PL_ID:PL_MEM];
     logic data_mem_read_enable[PL_ID:PL_MEM];
     logic data_mem_write_enable[PL_ID:PL_MEM];
     logic branch_status[PL_ID:PL_MEM];
+
+    // early result used for forwarding from the EX stage
+    logic [31:0] early_result[PL_EX:PL_WB];
+    logic [1:0] early_result_select[PL_ID:PL_EX];
 
     // register file inputs and outputs
     logic [31:0] rd_data[PL_WB:PL_WB];
@@ -67,7 +72,7 @@ module pipeline_datapath (
     logic [31:0] rs2_data[PL_ID:PL_MEM];
     
     // program counter signals
-    logic [31:0] pc_plus_4[PL_IF:PL_WB];
+    logic [31:0] pc_plus_4[PL_IF:PL_EX];
     logic [31:0] pc_plus_immediate[PL_EX:PL_EX];
     logic [31:0] next_pc;
     logic [4:0] inst_rd[PL_ID:PL_WB];
@@ -77,10 +82,10 @@ module pipeline_datapath (
     // ALU signals
     logic [31:0] alu_operand_a[PL_EX:PL_EX];
     logic [31:0] alu_operand_b[PL_EX:PL_EX];
-    logic [31:0] alu_result[PL_EX:PL_WB];
+    logic [31:0] alu_result[PL_EX:PL_MEM];
     
     // immediate
-    logic [31:0] immediate[PL_ID:PL_WB];
+    logic [31:0] immediate[PL_ID:PL_EX];
     
     // ID pipeline registers
     always_ff @(posedge clock or posedge reset) if (reset) begin
@@ -107,6 +112,7 @@ module pipeline_datapath (
         regfile_write_enable[PL_EX] <= regfile_write_enable[PL_ID];
         alu_operand_a_select[PL_EX] <= alu_operand_a_select[PL_ID];
         alu_operand_b_select[PL_EX] <= alu_operand_b_select[PL_ID];
+        early_result_select[PL_EX] <= early_result_select[PL_ID];
         alu_function[PL_EX] <= alu_function[PL_ID];
         reg_writeback_select[PL_EX] <= reg_writeback_select[PL_ID];
         data_mem_format[PL_EX] <= data_mem_format[PL_ID];
@@ -128,9 +134,9 @@ module pipeline_datapath (
         data_mem_write_enable[PL_MEM] <= 1'b0;
     end else begin
         rs2_data[PL_MEM] <= rs2_data[PL_EX];
-        immediate[PL_MEM] <= immediate[PL_EX];
+        // immediate[PL_MEM] <= immediate[PL_EX];
         alu_result[PL_MEM] <= alu_result[PL_EX];
-        pc_plus_4[PL_MEM] <= pc_plus_4[PL_EX];
+        // pc_plus_4[PL_MEM] <= pc_plus_4[PL_EX];
         inst_rd[PL_MEM] <= inst_rd[PL_EX];
         regfile_write_enable[PL_MEM] <= regfile_write_enable[PL_EX];
         reg_writeback_select[PL_MEM] <= reg_writeback_select[PL_EX];
@@ -138,19 +144,21 @@ module pipeline_datapath (
         data_mem_read_enable[PL_MEM] <= data_mem_read_enable[PL_EX];
         data_mem_write_enable[PL_MEM] <= data_mem_write_enable[PL_EX];
         branch_status[PL_MEM] <= branch_status[PL_EX];
+        early_result[PL_MEM] <= early_result[PL_EX];
     end
 
     // WB pipeline registers
     always_ff @(posedge clock or posedge reset) if (reset) begin
         regfile_write_enable[PL_WB] <= 1'b0;
     end else begin
-        immediate[PL_WB] <= immediate[PL_MEM];
-        alu_result[PL_WB] <= alu_result[PL_MEM];
+        // immediate[PL_WB] <= immediate[PL_MEM];
+        // alu_result[PL_WB] <= alu_result[PL_MEM];
         data_mem_read_data[PL_WB] <= data_mem_read_data[PL_MEM];
-        pc_plus_4[PL_WB] <= pc_plus_4[PL_MEM];
+        // pc_plus_4[PL_WB] <= pc_plus_4[PL_MEM];
         inst_rd[PL_WB] <= inst_rd[PL_MEM];
         regfile_write_enable[PL_WB] <= regfile_write_enable[PL_MEM];
         reg_writeback_select[PL_WB] <= reg_writeback_select[PL_MEM];
+        early_result[PL_WB] <= early_result[PL_MEM];
     end
 
     // inject inputs into pipeline
@@ -159,6 +167,7 @@ module pipeline_datapath (
     assign regfile_write_enable[PL_ID]  = _regfile_write_enable;
     assign alu_operand_a_select[PL_ID]  = _alu_operand_a_select;
     assign alu_operand_b_select[PL_ID]  = _alu_operand_b_select;
+    assign early_result_select[PL_ID]   = _early_result_select;
     assign alu_function[PL_ID]          = _alu_function;
     assign reg_writeback_select[PL_ID]  = _reg_writeback_select;
     assign data_mem_read_enable[PL_ID]  = _read_enable;
@@ -238,21 +247,41 @@ module pipeline_datapath (
         .sel (alu_operand_b_select[PL_EX]),
         .out (alu_operand_b[PL_EX])
     );
-    
-    multiplexer8 #(
+
+    multiplexer4 #(
+        .WIDTH(32)
+    ) mux_early_result (
+        .in0 (alu_result[PL_EX]),
+        .in1 (pc_plus_4[PL_EX]),
+        .in2 (immediate[PL_EX]),
+        .in3 (32'b0),
+        .sel (early_result_select[PL_EX]),
+        .out (early_result[PL_EX])
+    );
+
+    multiplexer2 #(
         .WIDTH(32)
     ) mux_reg_writeback (
-        .in0 (alu_result[PL_WB]),
+        .in0 (early_result[PL_WB]),
         .in1 (data_mem_read_data[PL_WB]),
-        .in2 (pc_plus_4[PL_WB]),
-        .in3 (immediate[PL_WB]),
-        .in4 (32'b0),
-        .in5 (32'b0),
-        .in6 (32'b0),
-        .in7 (32'b0),
         .sel (reg_writeback_select[PL_WB]),
         .out (rd_data[PL_WB])
     );
+
+    // multiplexer8 #(
+    //     .WIDTH(32)
+    // ) mux_reg_writeback (
+    //     .in0 (alu_result[PL_WB]),
+    //     .in1 (data_mem_read_data[PL_WB]),
+    //     .in2 (pc_plus_4[PL_WB]),
+    //     .in3 (immediate[PL_WB]),
+    //     .in4 (32'b0),
+    //     .in5 (32'b0),
+    //     .in6 (32'b0),
+    //     .in7 (32'b0),
+    //     .sel (reg_writeback_select[PL_WB]),
+    //     .out (rd_data[PL_WB])
+    // );
     
     register #(
         .WIDTH(32),

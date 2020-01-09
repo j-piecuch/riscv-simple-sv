@@ -18,10 +18,11 @@ module pipeline_control (
     output logic regfile_write_enable,
     output logic alu_operand_a_select,
     output logic alu_operand_b_select,
+    output logic [1:0] early_result_select,
     output logic [1:0] alu_op_type,
     output logic data_mem_read_enable,
     output logic data_mem_write_enable,
-    output logic [2:0] reg_writeback_select,
+    output logic reg_writeback_select,
     output logic [1:0] next_pc_select
 );
 
@@ -80,7 +81,8 @@ module pipeline_control (
         alu_operand_a_select    = 1'b1; // to avoid useless stalls
         alu_operand_b_select    = 1'b1; // -- || --
         alu_op_type             = 2'bx;
-        reg_writeback_select    = 3'bx;
+        early_result_select     = 2'bx;
+        reg_writeback_select    = 1'bx;
     
         case (inst_opcode)
             `OPCODE_LOAD:
@@ -101,7 +103,8 @@ module pipeline_control (
                 alu_operand_a_select    = `CTL_ALU_A_RS1;
                 alu_operand_b_select    = `CTL_ALU_B_IMM;
                 alu_op_type             = `CTL_ALU_OP_IMM;
-                reg_writeback_select    = `CTL_WRITEBACK_ALU;
+                early_result_select     = `CTL_EARLY_ALU;
+                reg_writeback_select    = `CTL_WRITEBACK_EARLY;
             end
     
             `OPCODE_AUIPC:
@@ -109,7 +112,8 @@ module pipeline_control (
                 alu_operand_a_select    = `CTL_ALU_A_PC;
                 alu_operand_b_select    = `CTL_ALU_B_IMM;
                 alu_op_type             = `CTL_ALU_ADD;
-                reg_writeback_select    = `CTL_WRITEBACK_ALU;
+                early_result_select     = `CTL_EARLY_ALU;
+                reg_writeback_select    = `CTL_WRITEBACK_EARLY;
             end
     
             `OPCODE_STORE:
@@ -123,15 +127,17 @@ module pipeline_control (
             begin
                 alu_operand_a_select    = `CTL_ALU_A_RS1;
                 alu_operand_b_select    = `CTL_ALU_B_RS2;
-                reg_writeback_select    = `CTL_WRITEBACK_ALU;
                 alu_op_type             = `CTL_ALU_OP;
+                early_result_select     = `CTL_EARLY_ALU;
+                reg_writeback_select    = `CTL_WRITEBACK_EARLY;
             end
     
             `OPCODE_LUI:
             begin
                 alu_operand_a_select    = `CTL_ALU_A_RS1;
                 alu_operand_b_select    = `CTL_ALU_B_RS2;
-                reg_writeback_select    = `CTL_WRITEBACK_IMM;
+                early_result_select     = `CTL_EARLY_IMM;
+                reg_writeback_select    = `CTL_WRITEBACK_EARLY;
             end
     
             `OPCODE_BRANCH:
@@ -146,7 +152,8 @@ module pipeline_control (
                 alu_operand_a_select    = `CTL_ALU_A_RS1;
                 alu_operand_b_select    = `CTL_ALU_B_IMM;
                 alu_op_type             = `CTL_ALU_ADD;
-                reg_writeback_select    = `CTL_WRITEBACK_PC4;
+                early_result_select     = `CTL_EARLY_PC4;
+                reg_writeback_select    = `CTL_WRITEBACK_EARLY;
             end
     
             `OPCODE_JAL:
@@ -154,7 +161,8 @@ module pipeline_control (
                 alu_operand_a_select    = `CTL_ALU_A_PC;
                 alu_operand_b_select    = `CTL_ALU_B_IMM;
                 alu_op_type             = `CTL_ALU_ADD;
-                reg_writeback_select    = `CTL_WRITEBACK_PC4;
+                early_result_select     = `CTL_EARLY_PC4;
+                reg_writeback_select    = `CTL_WRITEBACK_EARLY;
             end
     
             default: ;

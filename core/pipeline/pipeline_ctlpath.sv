@@ -21,9 +21,10 @@ module pipeline_ctlpath (
     output regfile_write_enable,
     output alu_operand_a_select,
     output alu_operand_b_select,
+    output [1:0] early_result_select,
     output data_mem_read_enable,
     output data_mem_write_enable,
-    output [2:0] reg_writeback_select,
+    output reg_writeback_select,
     output [4:0] alu_function,
     output [1:0] next_pc_select
 );
@@ -41,6 +42,7 @@ module pipeline_ctlpath (
         .regfile_write_enable   (regfile_write_enable),
         .alu_operand_a_select   (alu_operand_a_select),
         .alu_operand_b_select   (alu_operand_b_select),
+        .early_result_select    (early_result_select),
         .alu_op_type            (alu_op_type),
         .data_mem_read_enable   (data_mem_read_enable),
         .data_mem_write_enable  (data_mem_write_enable),

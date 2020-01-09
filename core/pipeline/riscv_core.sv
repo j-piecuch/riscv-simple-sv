@@ -25,7 +25,8 @@ module riscv_core (
     logic regfile_write_enable;
     logic alu_operand_a_select;
     logic alu_operand_b_select;
-    logic [2:0] reg_writeback_select;
+    logic [1:0] early_result_select;
+    logic reg_writeback_select;
     logic [6:0] inst_opcode;
     logic [2:0] inst_funct3;
     logic [2:0] data_format;
@@ -64,6 +65,7 @@ module riscv_core (
         ._regfile_write_enable  (regfile_write_enable),
         ._alu_operand_a_select  (alu_operand_a_select),
         ._alu_operand_b_select  (alu_operand_b_select),
+        ._early_result_select   (early_result_select),
         ._reg_writeback_select  (reg_writeback_select),
         .next_pc_select         (next_pc_select),
         .alu_result_equal_zero  (alu_result_equal_zero),
@@ -86,6 +88,7 @@ module riscv_core (
         .regfile_write_enable   (regfile_write_enable),
         .alu_operand_a_select   (alu_operand_a_select),
         .alu_operand_b_select   (alu_operand_b_select),
+        .early_result_select    (early_result_select),
         .data_mem_read_enable   (read_enable_id),
         .data_mem_write_enable  (write_enable_id),
         .reg_writeback_select   (reg_writeback_select),
