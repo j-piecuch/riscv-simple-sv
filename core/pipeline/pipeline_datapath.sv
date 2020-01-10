@@ -164,8 +164,9 @@ module pipeline_datapath (
         data_mem_write_enable[PL_MEM] <= data_mem_write_enable[PL_EX];
         branch_status[PL_MEM] <= branch_status[PL_EX];
         early_result[PL_MEM] <= early_result[PL_EX];
-        writes_regfile[PL_MEM] <= writes_regfile[PL_EX];
     end
+
+    assign writes_regfile[PL_MEM] = regfile_write_enable[PL_MEM] && |inst_rd[PL_MEM];
 
     // WB pipeline registers
     always_ff @(posedge clock or posedge reset) if (reset) begin
@@ -180,8 +181,9 @@ module pipeline_datapath (
         rd_data[PL_WB] <= rd_data[PL_MEM];
         // reg_writeback_select[PL_WB] <= reg_writeback_select[PL_MEM];
         // early_result[PL_WB] <= early_result[PL_MEM];
-        writes_regfile[PL_WB] <= writes_regfile[PL_MEM];
     end
+
+    assign writes_regfile[PL_WB] = regfile_write_enable[PL_WB] && |inst_rd[PL_WB];
 
     // inject inputs into pipeline
     assign inst[PL_IF] = _inst;
