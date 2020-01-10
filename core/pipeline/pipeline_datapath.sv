@@ -51,23 +51,23 @@ module pipeline_datapath (
 
     logic [31:0] inst[PL_IF:PL_ID];
     logic [31:0] pc[PL_IF:PL_EX];
-    logic [31:0] data_mem_read_data[PL_MEM:PL_WB];
+    logic [31:0] data_mem_read_data[PL_MEM:PL_MEM];
     logic regfile_write_enable[PL_ID:PL_WB];
     logic alu_operand_a_select[PL_ID:PL_EX];
     logic alu_operand_b_select[PL_ID:PL_EX];
     logic [4:0] alu_function[PL_ID:PL_EX];
-    logic reg_writeback_select[PL_ID:PL_WB];
+    logic reg_writeback_select[PL_ID:PL_MEM];
     logic [2:0] data_mem_format[PL_ID:PL_MEM];
     logic data_mem_read_enable[PL_ID:PL_MEM];
     logic data_mem_write_enable[PL_ID:PL_MEM];
     logic branch_status[PL_ID:PL_MEM];
 
     // early result used for forwarding from the EX stage
-    logic [31:0] early_result[PL_EX:PL_WB];
+    logic [31:0] early_result[PL_EX:PL_MEM];
     logic [1:0] early_result_select[PL_ID:PL_EX];
 
     // register file inputs and outputs
-    logic [31:0] rd_data[PL_WB:PL_WB];
+    logic [31:0] rd_data[PL_MEM:PL_WB];
     logic [31:0] rs1_data[PL_ID:PL_EX];
     logic [31:0] rs2_data[PL_ID:PL_MEM];
     
@@ -153,12 +153,13 @@ module pipeline_datapath (
     end else begin
         // immediate[PL_WB] <= immediate[PL_MEM];
         // alu_result[PL_WB] <= alu_result[PL_MEM];
-        data_mem_read_data[PL_WB] <= data_mem_read_data[PL_MEM];
+        // data_mem_read_data[PL_WB] <= data_mem_read_data[PL_MEM];
         // pc_plus_4[PL_WB] <= pc_plus_4[PL_MEM];
         inst_rd[PL_WB] <= inst_rd[PL_MEM];
         regfile_write_enable[PL_WB] <= regfile_write_enable[PL_MEM];
-        reg_writeback_select[PL_WB] <= reg_writeback_select[PL_MEM];
-        early_result[PL_WB] <= early_result[PL_MEM];
+        rd_data[PL_WB] <= rd_data[PL_MEM];
+        // reg_writeback_select[PL_WB] <= reg_writeback_select[PL_MEM];
+        // early_result[PL_WB] <= early_result[PL_MEM];
     end
 
     // inject inputs into pipeline
@@ -262,10 +263,10 @@ module pipeline_datapath (
     multiplexer2 #(
         .WIDTH(32)
     ) mux_reg_writeback (
-        .in0 (early_result[PL_WB]),
-        .in1 (data_mem_read_data[PL_WB]),
-        .sel (reg_writeback_select[PL_WB]),
-        .out (rd_data[PL_WB])
+        .in0 (early_result[PL_MEM]),
+        .in1 (data_mem_read_data[PL_MEM]),
+        .sel (reg_writeback_select[PL_MEM]),
+        .out (rd_data[PL_MEM])
     );
 
     // multiplexer8 #(
