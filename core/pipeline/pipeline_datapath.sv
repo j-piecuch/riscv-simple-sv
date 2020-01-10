@@ -40,7 +40,9 @@ module pipeline_datapath (
     input [1:0] next_pc_select,
     input [4:0] _alu_function,
     input _read_enable,
-    input _write_enable
+    input _write_enable,
+    // Whether early_result can be forwarded from the EX stage
+    input _can_forward_early
 );
     // names for pipeline steps
     localparam PL_IF  = 0; // instruction fetch
@@ -61,13 +63,27 @@ module pipeline_datapath (
     logic data_mem_read_enable[PL_ID:PL_MEM];
     logic data_mem_write_enable[PL_ID:PL_MEM];
     logic branch_status[PL_ID:PL_MEM];
+    logic writes_regfile[PL_EX:PL_WB];
 
     // early result used for forwarding from the EX stage
     logic [31:0] early_result[PL_EX:PL_MEM];
     logic [1:0] early_result_select[PL_ID:PL_EX];
 
+    logic can_forward_early[PL_ID:PL_EX];
+    logic maybe_forward_early_rs1;
+    logic maybe_forward_early_rs2;
+    logic [PL_WB:PL_EX] can_forward_rs1;
+    logic [PL_WB:PL_EX] can_forward_rs2;
+    logic [31:0] forward_val[PL_EX:PL_WB];
+    logic [31:0] forward_rs1_val;
+    logic [31:0] forward_rs2_val;
+    logic forward_rs1;
+    logic forward_rs2;
+
     // register file inputs and outputs
     logic [31:0] rd_data[PL_MEM:PL_WB];
+    logic [31:0] rs1_data_pre_fwd;
+    logic [31:0] rs2_data_pre_fwd;
     logic [31:0] rs1_data[PL_ID:PL_EX];
     logic [31:0] rs2_data[PL_ID:PL_MEM];
     
@@ -119,6 +135,7 @@ module pipeline_datapath (
         data_mem_read_enable[PL_EX] <= data_mem_read_enable[PL_ID];
         data_mem_write_enable[PL_EX] <= data_mem_write_enable[PL_ID];
         branch_status[PL_EX] <= branch_status[PL_ID];
+        can_forward_early[PL_EX] <= can_forward_early[PL_ID];
         if (inject_bubble) begin
             branch_status[PL_EX] <= 1'b0;
             regfile_write_enable[PL_EX] <= 1'b0;
@@ -126,6 +143,8 @@ module pipeline_datapath (
             data_mem_write_enable[PL_EX] <= 1'b0;
         end
     end
+
+    assign writes_regfile[PL_EX] = regfile_write_enable[PL_EX] && |inst_rd[PL_EX];
 
     // MEM pipeline registers
     always_ff @(posedge clock or posedge reset) if (reset) begin
@@ -145,6 +164,7 @@ module pipeline_datapath (
         data_mem_write_enable[PL_MEM] <= data_mem_write_enable[PL_EX];
         branch_status[PL_MEM] <= branch_status[PL_EX];
         early_result[PL_MEM] <= early_result[PL_EX];
+        writes_regfile[PL_MEM] <= writes_regfile[PL_EX];
     end
 
     // WB pipeline registers
@@ -160,6 +180,7 @@ module pipeline_datapath (
         rd_data[PL_WB] <= rd_data[PL_MEM];
         // reg_writeback_select[PL_WB] <= reg_writeback_select[PL_MEM];
         // early_result[PL_WB] <= early_result[PL_MEM];
+        writes_regfile[PL_WB] <= writes_regfile[PL_MEM];
     end
 
     // inject inputs into pipeline
@@ -175,6 +196,7 @@ module pipeline_datapath (
     assign data_mem_write_enable[PL_ID] = _write_enable;
     assign data_mem_format[PL_ID] = inst_funct3;
     assign branch_status[PL_ID] = jump_start;
+    assign can_forward_early[PL_ID] = _can_forward_early;
 
     // extract outputs from pipeline
     assign _pc = pc[PL_IF];
@@ -185,16 +207,50 @@ module pipeline_datapath (
     assign _data_mem_write_enable = data_mem_write_enable[PL_MEM];
     assign _branch_status         = {branch_status[PL_MEM], branch_status[PL_EX]};
 
+    // forwarding signals
+    assign maybe_forward_early_rs1 = writes_regfile[PL_EX] && inst_rd[PL_EX] == inst_rs1[PL_ID];
+    assign maybe_forward_early_rs2 = writes_regfile[PL_EX] && inst_rd[PL_EX] == inst_rs2[PL_ID];
+
+    assign can_forward_rs1[PL_EX] = maybe_forward_early_rs1 && can_forward_early[PL_EX];
+    assign can_forward_rs2[PL_EX] = maybe_forward_early_rs2 && can_forward_early[PL_EX];
+    assign can_forward_rs1[PL_MEM] = writes_regfile[PL_MEM] && inst_rd[PL_MEM] == inst_rs1[PL_ID];
+    assign can_forward_rs2[PL_MEM] = writes_regfile[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID];
+    assign can_forward_rs1[PL_WB] = writes_regfile[PL_WB] && inst_rd[PL_WB] == inst_rs1[PL_ID];
+    assign can_forward_rs2[PL_WB] = writes_regfile[PL_WB] && inst_rd[PL_WB] == inst_rs2[PL_ID];
+
+    assign forward_val[PL_EX]  = early_result[PL_EX];
+    assign forward_val[PL_MEM] = rd_data[PL_MEM];
+    assign forward_val[PL_WB]  = rd_data[PL_WB];
+
+    assign forward_rs1 = |can_forward_rs1;
+    assign forward_rs2 = |can_forward_rs2;
+
+    assign forward_rs1_val =
+           can_forward_rs1[PL_EX]  ? forward_val[PL_EX] :
+           can_forward_rs1[PL_MEM] ? forward_val[PL_MEM] :
+           can_forward_rs1[PL_WB]  ? forward_val[PL_WB] : 32'bx;
+
+    assign forward_rs2_val =
+           can_forward_rs2[PL_EX]  ? forward_val[PL_EX] :
+           can_forward_rs2[PL_MEM] ? forward_val[PL_MEM] :
+           can_forward_rs2[PL_WB]  ? forward_val[PL_WB] : 32'bx;
+
+    // only stall when an instruction depends on a load instruction that immediately precedes it
     assign want_stall =
-           regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs1[PL_ID] && |inst_rd[PL_MEM] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
-        || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
-        || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID])
-        || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs1[PL_ID] && |inst_rd[PL_EX] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
-        || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs2[PL_ID] && |inst_rd[PL_EX] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
-        || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs2[PL_ID] && |inst_rd[PL_EX] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID])
-        || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs1[PL_ID] && |inst_rd[PL_WB] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
-        || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs2[PL_ID] && |inst_rd[PL_WB] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
-        || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs2[PL_ID] && |inst_rd[PL_WB] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID]);
+           maybe_forward_early_rs1 && !can_forward_early[PL_EX] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
+        || maybe_forward_early_rs2 && !can_forward_early[PL_EX] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
+        || maybe_forward_early_rs2 && !can_forward_early[PL_EX] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID]);
+
+    // assign want_stall =
+    //        regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs1[PL_ID] && |inst_rd[PL_MEM] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
+    //     || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
+    //     || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID])
+    //     || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs1[PL_ID] && |inst_rd[PL_EX] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
+    //     || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs2[PL_ID] && |inst_rd[PL_EX] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
+    //     || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs2[PL_ID] && |inst_rd[PL_EX] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID])
+    //     || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs1[PL_ID] && |inst_rd[PL_WB] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
+    //     || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs2[PL_ID] && |inst_rd[PL_WB] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
+    //     || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs2[PL_ID] && |inst_rd[PL_WB] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID]);
     
     adder #(
         .WIDTH(32)
@@ -302,8 +358,26 @@ module pipeline_datapath (
         .rs1_address        (inst_rs1[PL_ID]),
         .rs2_address        (inst_rs2[PL_ID]),
         .rd_data            (rd_data[PL_WB]),
-        .rs1_data           (rs1_data[PL_ID]),
-        .rs2_data           (rs2_data[PL_ID])
+        .rs1_data           (rs1_data_pre_fwd),
+        .rs2_data           (rs2_data_pre_fwd)
+    );
+
+    multiplexer2 #(
+        .WIDTH(32)
+    ) mux_forward_rs1 (
+        .in0 (rs1_data_pre_fwd),
+        .in1 (forward_rs1_val),
+        .sel (forward_rs1),
+        .out (rs1_data[PL_ID])
+    );
+
+    multiplexer2 #(
+        .WIDTH(32)
+    ) mux_forward_rs2 (
+        .in0 (rs2_data_pre_fwd),
+        .in1 (forward_rs2_val),
+        .sel (forward_rs2),
+        .out (rs2_data[PL_ID])
     );
 
     instruction_decoder instruction_decoder(

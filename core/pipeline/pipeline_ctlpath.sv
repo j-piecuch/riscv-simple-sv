@@ -26,7 +26,8 @@ module pipeline_ctlpath (
     output data_mem_write_enable,
     output reg_writeback_select,
     output [4:0] alu_function,
-    output [1:0] next_pc_select
+    output [1:0] next_pc_select,
+    output can_forward_early
 );
 
     logic take_branch;
@@ -49,7 +50,8 @@ module pipeline_ctlpath (
         .reg_writeback_select   (reg_writeback_select),
         .take_branch            (take_branch),
         .next_pc_select         (next_pc_select),
-        .branch_status          (branch_status)
+        .branch_status          (branch_status),
+        .can_forward_early      (can_forward_early)
     );
 
     control_transfer control_transfer (

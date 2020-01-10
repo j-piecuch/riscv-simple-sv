@@ -41,6 +41,7 @@ module riscv_core (
     logic write_enable_id;
     logic read_enable;
     logic write_enable;
+    logic can_forward_early;
     logic [1:0] branch_status;
     logic no_stall;
     logic jump_start;
@@ -72,6 +73,7 @@ module riscv_core (
         ._alu_function          (alu_function),
         ._read_enable           (read_enable_id),
         ._write_enable          (write_enable_id),
+        ._can_forward_early     (can_forward_early),
         ._branch_status         (branch_status),
         .no_stall               (no_stall),
         .jump_start             (jump_start),
@@ -98,7 +100,8 @@ module riscv_core (
         .no_stall               (no_stall),
         .jump_start             (jump_start),
         .want_stall             (want_stall),
-        .inject_bubble          (inject_bubble)
+        .inject_bubble          (inject_bubble),
+        .can_forward_early      (can_forward_early)
     );
     
     data_memory_interface data_memory_interface (

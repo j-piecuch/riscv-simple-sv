@@ -23,7 +23,8 @@ module pipeline_control (
     output logic data_mem_read_enable,
     output logic data_mem_write_enable,
     output logic reg_writeback_select,
-    output logic [1:0] next_pc_select
+    output logic [1:0] next_pc_select,
+    output logic can_forward_early
 );
 
     always_comb
@@ -168,6 +169,8 @@ module pipeline_control (
             default: ;
         endcase
     end
+
+    assign can_forward_early = reg_writeback_select == `CTL_WRITEBACK_EARLY;
 
 endmodule
 
