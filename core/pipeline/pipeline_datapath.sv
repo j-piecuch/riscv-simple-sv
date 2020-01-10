@@ -72,8 +72,8 @@ module pipeline_datapath (
     logic can_forward_early[PL_ID:PL_EX];
     logic maybe_forward_early_rs1;
     logic maybe_forward_early_rs2;
-    logic [PL_WB:PL_EX] can_forward_rs1;
-    logic [PL_WB:PL_EX] can_forward_rs2;
+    logic can_forward_rs1 [PL_EX:PL_WB];
+    logic can_forward_rs2 [PL_EX:PL_WB];
     logic [31:0] forward_val[PL_EX:PL_WB];
     logic [31:0] forward_rs1_val;
     logic [31:0] forward_rs2_val;
@@ -224,8 +224,8 @@ module pipeline_datapath (
     assign forward_val[PL_MEM] = rd_data[PL_MEM];
     assign forward_val[PL_WB]  = rd_data[PL_WB];
 
-    assign forward_rs1 = |can_forward_rs1;
-    assign forward_rs2 = |can_forward_rs2;
+    assign forward_rs1 = can_forward_rs1[PL_EX] || can_forward_rs1[PL_MEM] || can_forward_rs1[PL_WB];
+    assign forward_rs2 = can_forward_rs2[PL_EX] || can_forward_rs2[PL_MEM] || can_forward_rs2[PL_WB];
 
     assign forward_rs1_val =
            can_forward_rs1[PL_EX]  ? forward_val[PL_EX] :
