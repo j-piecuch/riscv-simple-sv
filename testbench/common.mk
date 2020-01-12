@@ -5,7 +5,8 @@ OBJS=$(VERILATED_SRCS:.cpp=.o) main.o
 CXXFLAGS=-I ${VERILATOR_INCLUDE} -I ${VERILATOR_INCLUDE}/vltstd
 SV_SOURCES=$(wildcard ../../core/common/*.sv) $(wildcard ../../core/$(CORETYPE)/*.sv) config.sv
 VFLAGS=-Wno-fatal -I. -I../../core/common/ -I../../core/$(CORETYPE)
-VLOG_FLAGS=-suppress 7061 +incdir+../../core/common +incdir+../../core/$(CORETYPE)
+VLOG_FLAGS=-suppress 7061,7033 +incdir+../../core/common +incdir+../../core/$(CORETYPE)
+VSIM_FLAGS=${FILE_OPTS} -suppress 7033
 VLOG_LIB=sim_comp
 FILE_OPTS=+text_file=$(TESTDIR)/$*.text.vh +data_file=$(TESTDIR)/$*.data.vh
 TOPLEVEL_MODULE=$(VLOG_LIB).testbench
@@ -38,10 +39,10 @@ ${VLOG_LIB}: ${SV_SOURCES} ../testbench.sv
 
 %.sim_batch: ${VLOG_LIB}
 	mkdir -p ${TRANSCRIPTS_DIR}
-	../run_sim batch ${TOPLEVEL_MODULE} $(TRANSCRIPTS_DIR)/$*_transcript ${FILE_OPTS}
+	../run_sim batch ${TOPLEVEL_MODULE} $(TRANSCRIPTS_DIR)/$*_transcript ${VSIM_FLAGS}
 
 %.sim: ${VLOG_LIB}
-	../run_sim interactive ${TOPLEVEL_MODULE} ${FILE_OPTS}
+	../run_sim interactive ${TOPLEVEL_MODULE} ${VSIM_FLAGS}
 
 clean:
 	rm -rf testbench main.cpp ${OBJS} ${wildcard V*} ${VLOG_LIB} ${TRANSCRIPTS_DIR}
