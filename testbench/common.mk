@@ -3,7 +3,7 @@ VERILATOR_INCLUDE=/usr/share/verilator/include
 VERILATED_SRCS=Vtoplevel.cpp Vtoplevel__Syms.cpp Vtoplevel___024unit.cpp
 OBJS=$(VERILATED_SRCS:.cpp=.o) main.o
 CXXFLAGS=-I ${VERILATOR_INCLUDE} -I ${VERILATOR_INCLUDE}/vltstd
-SV_SOURCES=$(wildcard ../../core/common/*.sv) $(wildcard ../../core/$(CORETYPE)/*.sv) config.sv
+SV_SOURCES=$(wildcard ../../core/common/*.sv) $(wildcard ../../core/$(CORETYPE)/*.sv) config.sv ../common_config.sv
 VFLAGS=-Wno-fatal -I. -I../../core/common/ -I../../core/$(CORETYPE)
 VLOG_FLAGS=-suppress 7061,7033 +incdir+../../core/common +incdir+../../core/$(CORETYPE)
 VSIM_FLAGS=${FILE_OPTS} -suppress 7033
