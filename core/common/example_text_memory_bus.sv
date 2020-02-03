@@ -47,7 +47,7 @@ module example_text_memory_bus (
 
     always_comb begin
         num_reads = 0;
-        for (i = 1; i <= LATENCY; i++) num_reads = num_reads + last_read_enable[i];
+        for (i = 1; i <= LATENCY; i++) num_reads = num_reads + {7'b0, last_read_enable[i]};
     end
 
     always_ff @(posedge clock) begin
