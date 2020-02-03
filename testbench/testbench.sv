@@ -1,3 +1,7 @@
+// RISC-V SiMPLE SV -- SystemVerilog testbench
+// BSD 3-Clause License
+// (c) 2020, Jakub Piecuch, University of Wrocław
+
 module testbench();
     logic clk, rst;
     logic [31:0] bus_read_data;
