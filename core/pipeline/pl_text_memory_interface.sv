@@ -64,7 +64,7 @@ module pl_text_memory_interface (
         end
 
     always_comb
-        if (inst_valid && all_reqs == 1) begin
+        if (inst_valid && all_reqs == 1 && !next_pc_valid) begin
             inst_available = 1'b1;
             inst = inst_data;
         end else if (has_stored_inst && all_reqs == 0) begin
