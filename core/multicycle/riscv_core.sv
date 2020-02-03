@@ -1,6 +1,6 @@
 // RISC-V SiMPLE SV -- Multicycle RISC-V core
 // BSD 3-Clause License
-// (c) 2017-2019, Marek Materzok, University of Wrocław
+// (c) 2017-2020, Marek Materzok, Jakub Piecuch, University of Wrocław
 
 `include "config.sv"
 `include "constants.sv"

@@ -1,3 +1,7 @@
+// RISC-V SiMPLE SV -- text memory interface for pipelined architecture
+// BSD 3-Clause License
+// (c) 2020, Jakub Piecuch, University of Wrocław
+
 module my_text_memory_interface (
     input         clock,
     input         reset,
