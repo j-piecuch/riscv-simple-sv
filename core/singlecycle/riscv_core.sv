@@ -90,7 +90,6 @@ module riscv_core (
     data_memory_interface data_memory_interface (
         .clock                  (clock),
         .reset                  (reset),
-        .next_inst              (pc_write_enable),
         .read_enable            (read_enable),
         .write_enable           (write_enable),
         .data_format            (inst_funct3),

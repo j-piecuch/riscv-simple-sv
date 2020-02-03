@@ -103,7 +103,6 @@ module riscv_core (
         .clock                  (clock),
         .reset                  (reset),
         .data_available         (data_available),
-        .next_inst              (next_cycle),
         .read_enable            (read_enable),
         .write_enable           (write_enable),
         .data_format            (data_format),
