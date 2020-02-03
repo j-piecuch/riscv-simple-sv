@@ -6,6 +6,12 @@ module testbench();
     logic [3:0]  bus_byte_enable;
     logic        bus_read_enable;
     logic        bus_write_enable;
+    logic        bus_wait_req;
+    logic        bus_valid;
+
+    logic        inst_read_enable;
+    logic        inst_wait_req;
+    logic        inst_valid;
 
     logic [31:0] inst;
     logic [31:0] pc;
@@ -43,6 +49,11 @@ module testbench();
         .bus_byte_enable(bus_byte_enable),
         .bus_read_enable(bus_read_enable),
         .bus_write_enable(bus_write_enable),
+        .bus_wait_req(bus_wait_req),
+        .bus_valid(bus_valid),
+        .inst_read_enable(inst_read_enable),
+        .inst_wait_req(inst_wait_req),
+        .inst_valid(inst_valid),
         .inst(inst),
         .pc(pc)
     );
