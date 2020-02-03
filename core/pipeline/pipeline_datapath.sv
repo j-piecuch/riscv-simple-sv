@@ -16,22 +16,30 @@ module pipeline_datapath (
     output _data_mem_read_enable,
     output _data_mem_write_enable,
     output [2:0] _data_mem_format,
+    input _data_mem_request_successful,
+    input _data_mem_data_available,
 
     input  [31:0] _inst,
     output [31:0] _pc,
+    output [31:0] next_pc,
 
     output [6:0] inst_opcode,
     output [2:0] inst_funct3,
     output [6:0] inst_funct7,
     output alu_result_equal_zero,
-    output [1:0] _branch_status,
-    output want_stall,
-    
+    output branch_ex,
+    output want_stall_id,
+    output logic want_stall_mem,
+
     // control signals
     input pc_write_enable,
-    input no_stall,
+    input stall_id,
+    input stall_ex,
+    input stall_mem,
     input jump_start,
-    input inject_bubble,
+    input inject_bubble_id,
+    input inject_bubble_ex,
+    input inject_bubble_wb,
     input _regfile_write_enable,
     input _alu_operand_a_select,
     input _alu_operand_b_select,
@@ -59,7 +67,7 @@ module pipeline_datapath (
     logic [2:0] data_mem_format[PL_ID:PL_MEM];
     logic data_mem_read_enable[PL_ID:PL_MEM];
     logic data_mem_write_enable[PL_ID:PL_MEM];
-    logic branch_status[PL_ID:PL_MEM];
+    logic branch_status[PL_ID:PL_EX];
 
     // register file inputs and outputs
     logic [31:0] rd_data[PL_WB:PL_WB];
@@ -69,7 +77,6 @@ module pipeline_datapath (
     // program counter signals
     logic [31:0] pc_plus_4[PL_IF:PL_WB];
     logic [31:0] pc_plus_immediate[PL_EX:PL_EX];
-    logic [31:0] next_pc;
     logic [4:0] inst_rd[PL_ID:PL_WB];
     logic [4:0] inst_rs1[PL_ID:PL_ID];
     logic [4:0] inst_rs2[PL_ID:PL_ID];
@@ -83,21 +90,31 @@ module pipeline_datapath (
     logic [31:0] immediate[PL_ID:PL_WB];
     
     // ID pipeline registers
+`define RESET_ID \
+    inst[PL_ID] <= 32'h00000013; // nop
+
     always_ff @(posedge clock or posedge reset) if (reset) begin
-        inst[PL_ID] <= 32'h00000013; // nop
-    end else if (no_stall) begin
+        `RESET_ID
+    end else if (inject_bubble_id) begin
+        `RESET_ID
+    end else if (!stall_id) begin
         inst[PL_ID] <= inst[PL_IF];
         pc[PL_ID] <= pc[PL_IF];
         pc_plus_4[PL_ID] <= pc_plus_4[PL_IF];
     end
 
     // EX pipeline registers
+`define RESET_EX \
+    regfile_write_enable[PL_EX] <= 1'b0;  \
+    data_mem_read_enable[PL_EX] <= 1'b0;  \
+    data_mem_write_enable[PL_EX] <= 1'b0; \
+    branch_status[PL_EX] <= 1'b0;
+
     always_ff @(posedge clock or posedge reset) if (reset) begin
-        regfile_write_enable[PL_EX] <= 1'b0;
-        data_mem_read_enable[PL_EX] <= 1'b0;
-        data_mem_write_enable[PL_EX] <= 1'b0;
-        branch_status[PL_EX] <= 1'b0;
-    end else begin
+        `RESET_EX
+    end else if (inject_bubble_ex) begin
+        `RESET_EX
+    end else if (!stall_ex) begin
         rs1_data[PL_EX] <= rs1_data[PL_ID];
         rs2_data[PL_EX] <= rs2_data[PL_ID];
         immediate[PL_EX] <= immediate[PL_ID];
@@ -113,12 +130,6 @@ module pipeline_datapath (
         data_mem_read_enable[PL_EX] <= data_mem_read_enable[PL_ID];
         data_mem_write_enable[PL_EX] <= data_mem_write_enable[PL_ID];
         branch_status[PL_EX] <= branch_status[PL_ID];
-        if (inject_bubble) begin
-            branch_status[PL_EX] <= 1'b0;
-            regfile_write_enable[PL_EX] <= 1'b0;
-            data_mem_read_enable[PL_EX] <= 1'b0;
-            data_mem_write_enable[PL_EX] <= 1'b0;
-        end
     end
 
     // MEM pipeline registers
@@ -126,7 +137,7 @@ module pipeline_datapath (
         regfile_write_enable[PL_MEM] <= 1'b0;
         data_mem_read_enable[PL_MEM] <= 1'b0;
         data_mem_write_enable[PL_MEM] <= 1'b0;
-    end else begin
+    end else if (!stall_mem) begin
         rs2_data[PL_MEM] <= rs2_data[PL_EX];
         immediate[PL_MEM] <= immediate[PL_EX];
         alu_result[PL_MEM] <= alu_result[PL_EX];
@@ -137,12 +148,25 @@ module pipeline_datapath (
         data_mem_format[PL_MEM] <= data_mem_format[PL_EX];
         data_mem_read_enable[PL_MEM] <= data_mem_read_enable[PL_EX];
         data_mem_write_enable[PL_MEM] <= data_mem_write_enable[PL_EX];
-        branch_status[PL_MEM] <= branch_status[PL_EX];
+    end
+
+    always_comb begin
+        if (data_mem_read_enable[PL_MEM])
+            want_stall_mem = !_data_mem_data_available;
+        else if (data_mem_write_enable[PL_MEM])
+            want_stall_mem = !_data_mem_request_successful;
+        else
+            want_stall_mem = 1'b0;
     end
 
     // WB pipeline registers
+`define RESET_WB \
+    regfile_write_enable[PL_WB] <= 1'b0;
+
     always_ff @(posedge clock or posedge reset) if (reset) begin
-        regfile_write_enable[PL_WB] <= 1'b0;
+        `RESET_WB
+    end else if (inject_bubble_wb) begin
+        `RESET_WB
     end else begin
         immediate[PL_WB] <= immediate[PL_MEM];
         alu_result[PL_WB] <= alu_result[PL_MEM];
@@ -173,9 +197,9 @@ module pipeline_datapath (
     assign _data_mem_format       = data_mem_format[PL_MEM];
     assign _data_mem_read_enable  = data_mem_read_enable[PL_MEM];
     assign _data_mem_write_enable = data_mem_write_enable[PL_MEM];
-    assign _branch_status         = {branch_status[PL_MEM], branch_status[PL_EX]};
+    assign branch_ex              = branch_status[PL_EX];
 
-    assign want_stall =
+    assign want_stall_id =
            regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs1[PL_ID] && |inst_rd[PL_MEM] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
         || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
         || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID])

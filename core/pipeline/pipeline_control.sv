@@ -9,14 +9,19 @@
 module pipeline_control (
     input  [6:0] inst_opcode,
     input  take_branch,
-    input  [1:0] branch_status,
-    input  want_stall,
+    input  branch_ex,
+    input  want_stall_id,
+    input  want_stall_mem,
     input  inst_available,
     input  data_available,
     output logic pc_write_enable,
-    output logic no_stall,
+    output logic stall_id,
+    output logic stall_ex,
+    output logic stall_mem,
     output logic jump_start,
-    output logic inject_bubble,
+    output logic inject_bubble_ex,
+    output logic inject_bubble_id,
+    output logic inject_bubble_wb,
     output logic regfile_write_enable,
     output logic alu_operand_a_select,
     output logic alu_operand_b_select,
@@ -27,8 +32,18 @@ module pipeline_control (
     output logic [1:0] next_pc_select
 );
 
+    logic inst_is_branch;
+
     always_comb
-        if (branch_status[0])
+        case (inst_opcode)
+          `OPCODE_BRANCH, `OPCODE_JALR, `OPCODE_JAL:
+              inst_is_branch = 1'b1;
+          default:
+              inst_is_branch = 1'b0;
+        endcase
+
+    always_comb
+        if (branch_ex)
         case (inst_opcode)
             `OPCODE_BRANCH: next_pc_select = take_branch ? `CTL_PC_PC_IMM : `CTL_PC_PC4_BR;
             `OPCODE_JALR:   next_pc_select = `CTL_PC_RS1_IMM;
@@ -38,34 +53,44 @@ module pipeline_control (
         else next_pc_select = `CTL_PC_PC4;
 
     always_comb begin
-        pc_write_enable         = 1'b1;
-        no_stall                = 1'b1;
-        jump_start              = 1'b0;
-        inject_bubble           = 1'b0;
+        pc_write_enable  = 1'b1;
+        stall_id         = 1'b0;
+        stall_ex         = 1'b0;
+        stall_mem        = 1'b0;
+        inject_bubble_ex = 1'b0;
+        inject_bubble_id = 1'b0;
+        inject_bubble_wb = 1'b0;
 
-        if (want_stall) begin
-            pc_write_enable = 1'b0;
-            no_stall        = 1'b0;
-            inject_bubble   = 1'b1;
+        if (want_stall_mem) begin
+            // stall on data memory access
+            pc_write_enable  = 1'b0;
+            stall_id         = 1'b1;
+            stall_ex         = 1'b1;
+            stall_mem        = 1'b1;
+            inject_bubble_wb = 1'b1;
+        end else if (want_stall_id) begin
+            // stall on register dependency
+            pc_write_enable  = 1'b0;
+            stall_id         = 1'b1;
+            inject_bubble_ex = 1'b1;
+        end else if (inst_is_branch) begin
+            pc_write_enable  = branch_ex;
+            stall_id         = !branch_ex;
+            inject_bubble_id = branch_ex;
         end else if (!inst_available) begin
-            pc_write_enable = 1'b0;
-            no_stall        = 1'b0;
-        end else case (inst_opcode)
-            `OPCODE_BRANCH, `OPCODE_JALR, `OPCODE_JAL:
-            begin
-                pc_write_enable         = |branch_status;
-                no_stall                = branch_status[1];
-                jump_start              = !(|branch_status);
-            end
-            default: ;
-        endcase
+            // stall on text memory access
+            pc_write_enable  = 1'b0;
+            inject_bubble_id = 1'b1;
+        end
     end
+
+    assign jump_start = inst_is_branch ? !branch_ex : 1'b0;
 
     always_comb begin
         regfile_write_enable    = 1'b0;
         data_mem_read_enable    = 1'b0;
         data_mem_write_enable   = 1'b0;
-        if (inst_available) case (inst_opcode)
+        case (inst_opcode)
             `OPCODE_LOAD:
             begin
                 regfile_write_enable    = 1'b1;
@@ -76,7 +101,7 @@ module pipeline_control (
             `OPCODE_OP, `OPCODE_OP_IMM, `OPCODE_LUI, `OPCODE_AUIPC:
                 regfile_write_enable    = 1'b1;
             `OPCODE_JALR, `OPCODE_JAL:
-                regfile_write_enable    = !(|branch_status);
+                regfile_write_enable    = !branch_ex;
             default: ;
         endcase
     end
