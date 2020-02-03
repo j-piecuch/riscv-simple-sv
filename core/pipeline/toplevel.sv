@@ -47,7 +47,7 @@ module toplevel (
         .bus_byte_enable        (bus_byte_enable)
     );
 
-    example_text_memory_bus text_memory_bus (
+    cached_text_memory_bus text_memory_bus (
         .clock                  (clock),
         .reset                  (reset),
         .read_enable            (inst_read_enable),
