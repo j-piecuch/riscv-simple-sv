@@ -1,6 +1,6 @@
 // RISC-V SiMPLE SV -- testbench
 // BSD 3-Clause License
-// (c) 2019, Marek Materzok, University of Wrocław
+// (c) 2019-2020, Marek Materzok, Jakub Piecuch, University of Wrocław
 
 #include "Vtoplevel.h"
 #include "verilated.h"

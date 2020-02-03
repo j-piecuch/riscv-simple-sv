@@ -1,7 +1,7 @@
 // RISC-V SiMPLE SV -- common configuration for testbench
 // BSD 3-Clause License
-// (c) 2017-2019, Arthur Matos, Marcus Vinicius Lamar, Universidade de Brasília,
-//                Marek Materzok, University of Wrocław
+// (c) 2017-2020, Arthur Matos, Marcus Vinicius Lamar, Universidade de Brasília,
+//                Marek Materzok, Jakub Piecuch, University of Wrocław
 
 `ifndef RV_COMMON_CONFIG
 `define RV_COMMON_CONFIG
