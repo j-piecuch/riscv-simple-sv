@@ -26,6 +26,8 @@ module toplevel (
     output        inst_valid
 );
 
+    logic [31:0] inst_addr;
+
     riscv_core riscv_core (
         .clock                  (clock),
         .reset                  (reset),
@@ -34,6 +36,7 @@ module toplevel (
         .inst_read_enable       (inst_read_enable),
         .inst_wait_req          (inst_wait_req),
         .inst_valid             (inst_valid),
+        .inst_addr              (inst_addr),
         .bus_address            (bus_address),
         .bus_read_data          (bus_read_data),
         .bus_write_data         (bus_write_data),
@@ -50,10 +53,10 @@ module toplevel (
         .read_enable            (inst_read_enable),
         .wait_req               (inst_wait_req),
         .valid                  (inst_valid),
-        .address                (pc),
+        .address                (inst_addr),
         .read_data              (inst)
     );
-    
+
     example_data_memory_bus data_memory_bus (
         .clock                  (clock),
         .reset                  (reset),

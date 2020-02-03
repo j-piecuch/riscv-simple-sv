@@ -23,7 +23,8 @@ module riscv_core (
     output [31:0] pc,
     output        inst_read_enable,
     input         inst_wait_req,
-    input         inst_valid
+    input         inst_valid,
+    output [31:0] inst_addr
 );
 
     logic pc_write_enable;
@@ -161,7 +162,8 @@ module riscv_core (
         .inst_valid             (inst_valid),
         .inst_available         (inst_available),
         .inst_data              (inst_data),
-        .inst                   (inst)
+        .inst                   (inst),
+        .inst_addr              (inst_addr)
     );
 
     pl_text_memory_interface_control text_mem_ctl (

@@ -12,7 +12,8 @@ module pl_text_memory_interface (
     output logic  inst_read_enable,
     output logic  inst_available,
     input [31:0]  inst_data,
-    output logic [31:0] inst
+    output logic [31:0] inst,
+    output [31:0] inst_addr
 );
 
     logic [31:0]  stored_inst;
@@ -24,20 +25,42 @@ module pl_text_memory_interface (
     logic         request_ready;
     logic         response_ready;
     logic         new_request;
+    logic [31:0]  current_pc;
+    logic         current_pc_valid;
+    logic [31:0]  next_pc;
+    logic         next_pc_valid;
 
     assign all_reqs = reqs_sent + {7'b0, inst_read_enable};
 
     assign request_ready = inst_read_enable && !inst_wait_req;
     assign response_ready = inst_valid;
     assign new_request = next_inst && (last_pc_valid ? last_pc != request_pc : 1'b1);
+    assign inst_read_enable = current_pc_valid;
+    assign inst_addr = current_pc;
 
     always_ff @(posedge clock)
         if (reset) begin
-            last_pc <= 32'b0;
-            last_pc_valid <= 1'b0;
+            current_pc       <= 32'b0;
+            current_pc_valid <= 1'b0;
+            next_pc          <= 32'b0;
+            next_pc_valid    <= 1'b0;
+            last_pc          <= 32'b0;
+            last_pc_valid    <= 1'b0;
         end else if (new_request) begin
-            last_pc <= request_pc;
+            last_pc       <= request_pc;
             last_pc_valid <= 1'b1;
+            if (!inst_wait_req || !current_pc_valid) begin
+                current_pc       <= request_pc;
+                current_pc_valid <= 1'b1;
+                next_pc_valid    <= 1'b0;
+            end else begin
+                next_pc       <= request_pc;
+                next_pc_valid <= 1'b1;
+            end
+        end else if (!inst_wait_req) begin
+            current_pc       <= next_pc;
+            current_pc_valid <= next_pc_valid;
+            next_pc_valid    <= 1'b0;
         end
 
     always_comb
@@ -68,14 +91,6 @@ module pl_text_memory_interface (
             reqs_sent <= reqs_sent + 1;
         else if (!request_ready && response_ready)
             reqs_sent <= reqs_sent - 1;
-
-    always_ff @(posedge clock)
-        if (reset)
-            inst_read_enable <= 1'b0;
-        else if (new_request)
-            inst_read_enable <= 1'b1;
-        else if (request_ready)
-            inst_read_enable <= 1'b0;
 
 endmodule // pl_text_memory_interface
 
