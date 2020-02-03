@@ -153,9 +153,7 @@ module pipeline_datapath (
         data_mem_write_enable[PL_MEM] <= 1'b0;
     end else begin
         rs2_data[PL_MEM] <= rs2_data[PL_EX];
-        // immediate[PL_MEM] <= immediate[PL_EX];
         alu_result[PL_MEM] <= alu_result[PL_EX];
-        // pc_plus_4[PL_MEM] <= pc_plus_4[PL_EX];
         inst_rd[PL_MEM] <= inst_rd[PL_EX];
         regfile_write_enable[PL_MEM] <= regfile_write_enable[PL_EX];
         reg_writeback_select[PL_MEM] <= reg_writeback_select[PL_EX];
@@ -172,15 +170,9 @@ module pipeline_datapath (
     always_ff @(posedge clock or posedge reset) if (reset) begin
         regfile_write_enable[PL_WB] <= 1'b0;
     end else begin
-        // immediate[PL_WB] <= immediate[PL_MEM];
-        // alu_result[PL_WB] <= alu_result[PL_MEM];
-        // data_mem_read_data[PL_WB] <= data_mem_read_data[PL_MEM];
-        // pc_plus_4[PL_WB] <= pc_plus_4[PL_MEM];
         inst_rd[PL_WB] <= inst_rd[PL_MEM];
         regfile_write_enable[PL_WB] <= regfile_write_enable[PL_MEM];
         rd_data[PL_WB] <= rd_data[PL_MEM];
-        // reg_writeback_select[PL_WB] <= reg_writeback_select[PL_MEM];
-        // early_result[PL_WB] <= early_result[PL_MEM];
     end
 
     assign writes_regfile[PL_WB] = regfile_write_enable[PL_WB] && |inst_rd[PL_WB];
@@ -243,17 +235,6 @@ module pipeline_datapath (
         || maybe_forward_early_rs2 && !can_forward_early[PL_EX] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
         || maybe_forward_early_rs2 && !can_forward_early[PL_EX] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID]);
 
-    // assign want_stall =
-    //        regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs1[PL_ID] && |inst_rd[PL_MEM] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
-    //     || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
-    //     || regfile_write_enable[PL_MEM] && inst_rd[PL_MEM] == inst_rs2[PL_ID] && |inst_rd[PL_MEM] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID])
-    //     || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs1[PL_ID] && |inst_rd[PL_EX] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
-    //     || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs2[PL_ID] && |inst_rd[PL_EX] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
-    //     || regfile_write_enable[PL_EX] && inst_rd[PL_EX] == inst_rs2[PL_ID] && |inst_rd[PL_EX] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID])
-    //     || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs1[PL_ID] && |inst_rd[PL_WB] && alu_operand_a_select[PL_ID] == `CTL_ALU_A_RS1
-    //     || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs2[PL_ID] && |inst_rd[PL_WB] && alu_operand_b_select[PL_ID] == `CTL_ALU_B_RS2
-    //     || regfile_write_enable[PL_WB] && inst_rd[PL_WB] == inst_rs2[PL_ID] && |inst_rd[PL_WB] && (data_mem_read_enable[PL_ID] || data_mem_write_enable[PL_ID]);
-    
     adder #(
         .WIDTH(32)
     ) adder_pc_plus_4 (
@@ -327,21 +308,6 @@ module pipeline_datapath (
         .out (rd_data[PL_MEM])
     );
 
-    // multiplexer8 #(
-    //     .WIDTH(32)
-    // ) mux_reg_writeback (
-    //     .in0 (alu_result[PL_WB]),
-    //     .in1 (data_mem_read_data[PL_WB]),
-    //     .in2 (pc_plus_4[PL_WB]),
-    //     .in3 (immediate[PL_WB]),
-    //     .in4 (32'b0),
-    //     .in5 (32'b0),
-    //     .in6 (32'b0),
-    //     .in7 (32'b0),
-    //     .sel (reg_writeback_select[PL_WB]),
-    //     .out (rd_data[PL_WB])
-    // );
-    
     register #(
         .WIDTH(32),
         .INITIAL(`INITIAL_PC)
