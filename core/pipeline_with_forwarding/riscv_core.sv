@@ -1,7 +1,7 @@
 // RISC-V SiMPLE SV -- Pipelined RISC-V core
 // BSD 3-Clause License
-// (c) 2017-2019, Arthur Matos, Marcus Vinicius Lamar, Universidade de Brasília,
-//                Marek Materzok, University of Wrocław
+// (c) 2017-2020, Arthur Matos, Marcus Vinicius Lamar, Universidade de Brasília,
+//                Marek Materzok, Jakub Piecuch, University of Wrocław
 
 `include "config.sv"
 `include "constants.sv"
@@ -25,7 +25,8 @@ module riscv_core (
     logic regfile_write_enable;
     logic alu_operand_a_select;
     logic alu_operand_b_select;
-    logic [2:0] reg_writeback_select;
+    logic [1:0] early_result_select;
+    logic reg_writeback_select;
     logic [6:0] inst_opcode;
     logic [2:0] inst_funct3;
     logic [2:0] data_format;
@@ -40,6 +41,7 @@ module riscv_core (
     logic write_enable_id;
     logic read_enable;
     logic write_enable;
+    logic can_forward_early;
     logic [1:0] branch_status;
     logic no_stall;
     logic jump_start;
@@ -64,12 +66,14 @@ module riscv_core (
         ._regfile_write_enable  (regfile_write_enable),
         ._alu_operand_a_select  (alu_operand_a_select),
         ._alu_operand_b_select  (alu_operand_b_select),
+        ._early_result_select   (early_result_select),
         ._reg_writeback_select  (reg_writeback_select),
         .next_pc_select         (next_pc_select),
         .alu_result_equal_zero  (alu_result_equal_zero),
         ._alu_function          (alu_function),
         ._read_enable           (read_enable_id),
         ._write_enable          (write_enable_id),
+        ._can_forward_early     (can_forward_early),
         ._branch_status         (branch_status),
         .no_stall               (no_stall),
         .jump_start             (jump_start),
@@ -86,6 +90,7 @@ module riscv_core (
         .regfile_write_enable   (regfile_write_enable),
         .alu_operand_a_select   (alu_operand_a_select),
         .alu_operand_b_select   (alu_operand_b_select),
+        .early_result_select    (early_result_select),
         .data_mem_read_enable   (read_enable_id),
         .data_mem_write_enable  (write_enable_id),
         .reg_writeback_select   (reg_writeback_select),
@@ -95,7 +100,8 @@ module riscv_core (
         .no_stall               (no_stall),
         .jump_start             (jump_start),
         .want_stall             (want_stall),
-        .inject_bubble          (inject_bubble)
+        .inject_bubble          (inject_bubble),
+        .can_forward_early      (can_forward_early)
     );
     
     data_memory_interface data_memory_interface (

@@ -1,7 +1,7 @@
 // RISC-V SiMPLE SV -- pipeline control path
 // BSD 3-Clause License
-// (c) 2017-2019, Arthur Matos, Marcus Vinicius Lamar, Universidade de Brasília,
-//                Marek Materzok, University of Wrocław
+// (c) 2017-2020, Arthur Matos, Marcus Vinicius Lamar, Universidade de Brasília,
+//                Marek Materzok, Jakub Piecuch, University of Wrocław
 
 `include "config.sv"
 `include "constants.sv"
@@ -21,11 +21,13 @@ module pipeline_ctlpath (
     output regfile_write_enable,
     output alu_operand_a_select,
     output alu_operand_b_select,
+    output [1:0] early_result_select,
     output data_mem_read_enable,
     output data_mem_write_enable,
-    output [2:0] reg_writeback_select,
+    output reg_writeback_select,
     output [4:0] alu_function,
-    output [1:0] next_pc_select
+    output [1:0] next_pc_select,
+    output can_forward_early
 );
 
     logic take_branch;
@@ -41,13 +43,15 @@ module pipeline_ctlpath (
         .regfile_write_enable   (regfile_write_enable),
         .alu_operand_a_select   (alu_operand_a_select),
         .alu_operand_b_select   (alu_operand_b_select),
+        .early_result_select    (early_result_select),
         .alu_op_type            (alu_op_type),
         .data_mem_read_enable   (data_mem_read_enable),
         .data_mem_write_enable  (data_mem_write_enable),
         .reg_writeback_select   (reg_writeback_select),
         .take_branch            (take_branch),
         .next_pc_select         (next_pc_select),
-        .branch_status          (branch_status)
+        .branch_status          (branch_status),
+        .can_forward_early      (can_forward_early)
     );
 
     control_transfer control_transfer (

@@ -125,7 +125,7 @@
 `define CTL_ALU_OP_IMM 2'b11
 
 // Register data sources
-`ifdef PIPELINE
+`ifdef PIPELINE_WITH_FORWARDING
 `define CTL_WRITEBACK_EARLY 1'b0
 `define CTL_WRITEBACK_DATA  1'b1
 
