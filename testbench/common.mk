@@ -1,8 +1,8 @@
 
 VERILATOR_INCLUDE=/usr/share/verilator/include
-VERILATED_SRCS=Vtoplevel.cpp Vtoplevel__Syms.cpp Vtoplevel___024unit.cpp
+VERILATED_DIR=verilated
 OBJS=$(VERILATED_SRCS:.cpp=.o) main.o
-CXXFLAGS=-I ${VERILATOR_INCLUDE} -I ${VERILATOR_INCLUDE}/vltstd
+CXXFLAGS=-I ${VERILATOR_INCLUDE} -I ${VERILATOR_INCLUDE}/vltstd -I ${VERILATED_DIR}
 SV_SOURCES=$(wildcard ../../core/common/*.sv) $(wildcard ../../core/$(CORETYPE)/*.sv) config.sv ../common_config.sv
 VFLAGS=-Wno-fatal -I. -I../../core/common/ -I../../core/$(CORETYPE)
 VLOG_FLAGS=-suppress 7061,7033 +incdir+../../core/common +incdir+../../core/$(CORETYPE)
@@ -21,17 +21,14 @@ sim: $(addsuffix .sim_batch,$(TESTS))
 %.run: testbench
 	./testbench ${FILE_OPTS}
 
-testbench: ${OBJS}
-	${CXX} ${CXXFLAGS} ${OBJS} ${VERILATOR_INCLUDE}/verilated.cpp -o testbench
-
-%.o: %.cpp
-	${CXX} ${CXXFLAGS} -c -o $@ $<
+testbench: ${VERILATED_DIR} main.cpp
+	${CXX} ${CXXFLAGS} ${VERILATED_DIR}/*.cpp main.cpp ${VERILATOR_INCLUDE}/verilated.cpp -o testbench
 
 main.cpp: ../main.cpp
 	cp ../main.cpp .
 
-${VERILATED_SRCS}: ${SV_SOURCES}
-	verilator ${VFLAGS} --cc ../../core/${CORETYPE}/toplevel.sv --Mdir .
+${VERILATED_DIR}: ${SV_SOURCES}
+	verilator ${VFLAGS} --cc ../../core/${CORETYPE}/toplevel.sv --Mdir ${VERILATED_DIR}
 
 ${VLOG_LIB}: ${SV_SOURCES} ../testbench.sv
 	vlib $@
@@ -45,5 +42,5 @@ ${VLOG_LIB}: ${SV_SOURCES} ../testbench.sv
 	../run_sim interactive ${TOPLEVEL_MODULE} ${VSIM_FLAGS}
 
 clean:
-	rm -rf testbench main.cpp ${OBJS} ${wildcard V*} ${VLOG_LIB} ${TRANSCRIPTS_DIR}
+	rm -rf testbench main.cpp ${OBJS} ${VERILATED_DIR} ${VLOG_LIB} ${TRANSCRIPTS_DIR}
 
