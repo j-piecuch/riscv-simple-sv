@@ -9,7 +9,6 @@
 module data_memory_interface (
     input  clock,
     input  reset,
-    input  next_inst,
     input  read_enable,
     input  write_enable,
     input  [2:0]  data_format,
