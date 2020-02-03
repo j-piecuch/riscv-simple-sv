@@ -151,7 +151,7 @@ module riscv_core (
         .bus_byte_enable        (bus_byte_enable)
     );
 
-    my_text_memory_interface text_memory_interface (
+    pl_text_memory_interface text_memory_interface (
         .clock                  (clock),
         .reset                  (reset),
         .request_pc             (request_pc),
@@ -164,7 +164,7 @@ module riscv_core (
         .inst                   (inst)
     );
 
-    my_text_memory_interface_control text_mem_ctl (
+    pl_text_memory_interface_control text_mem_ctl (
         .clock           (clock),
         .reset           (reset),
         .pc              (pc),

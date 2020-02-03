@@ -2,7 +2,7 @@
 // BSD 3-Clause License
 // (c) 2020, Jakub Piecuch, University of Wrocław
 
-module my_text_memory_interface (
+module pl_text_memory_interface (
     input         clock,
     input         reset,
     input [31:0]  request_pc,
@@ -77,9 +77,9 @@ module my_text_memory_interface (
         else if (request_ready)
             inst_read_enable <= 1'b0;
 
-endmodule // my_text_memory_interface
+endmodule // pl_text_memory_interface
 
-module my_text_memory_interface_control(
+module pl_text_memory_interface_control(
     input clock,
     input reset,
     input [31:0] pc,
@@ -97,4 +97,4 @@ module my_text_memory_interface_control(
     assign next_inst  = just_reset || pc_write_enable;
     assign request_pc = pc_write_enable ? next_pc : pc;
 
-endmodule // my_text_memory_interface_control
+endmodule // pl_text_memory_interface_control
