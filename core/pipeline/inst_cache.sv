@@ -60,6 +60,8 @@ module inst_cache #(
     // word-by-word view into the temporary line
     logic [WORDS_IN_LINE-1:0][RAM_WORD_BITS-1:0] temp_line_words;
 
+    logic [NUM_SETS-1:0][LINE_BITS-1:0] set_read_lines;
+
     // line read from the selected set
     wire [LINE_BITS-1:0] set_read_line;
     // instruction-by-instruction view into the read line
@@ -102,6 +104,10 @@ module inst_cache #(
             assign set_write_enable[i] = set_select[i] && state == STATE_WB;
         end
 
+        for (i = 0; i < NUM_SETS; i = i + 1) begin : set_read_line_loop
+            assign set_read_line = set_select[i] ?  set_read_lines[i] : {(LINE_BITS){1'bz}};
+        end
+
         for (i = 0; i < INSTS_IN_LINE; i = i + 1) begin : cache_inst_loop
             assign cache_inst = inst_select[i] ? set_read_line_insts[i] : 32'bz;
         end
@@ -123,7 +129,7 @@ module inst_cache #(
                 .tag(tag),
                 .write_data(temp_line),
                 .write_enable(set_write_enable[i]),
-                .read_data(set_read_line),
+                .read_data(set_read_lines[i]),
                 .read_data_valid(set_read_data_valid[i]),
                 .read_enable(set_read_enable[i])
             );
@@ -181,7 +187,7 @@ module inst_cache_set #(
     input [LINE_BITS-1:0] write_data,
     input write_enable,
 
-    inout [LINE_BITS-1:0] read_data,
+    output [LINE_BITS-1:0] read_data,
     output read_data_valid,
     input read_enable
 );
@@ -195,7 +201,6 @@ module inst_cache_set #(
     logic [SET_SIZE-1:0] match;
     logic [SET_SIZE-1:0] valid_match;
     logic [SET_SIZE-1:0] evict;
-    logic [LINE_BITS-1:0] internal_read_data;
 
     line_t lines[0:SET_SIZE-1];
 
@@ -220,7 +225,7 @@ module inst_cache_set #(
         end
 
         for (i = 0; i < SET_SIZE; i = i + 1) begin : data_loop
-            always_comb internal_read_data = valid_match[i] ? lines[i].data : {(LINE_BITS){1'bz}};
+            assign read_data = valid_match[i] ? lines[i].data : {(LINE_BITS){1'bz}};
         end
 
         for (i = 0; i < SET_SIZE; i = i + 1) begin : write_loop
@@ -235,7 +240,6 @@ module inst_cache_set #(
     endgenerate
 
     assign read_data_valid = |valid_match && read_enable;
-    assign read_data = read_enable ? internal_read_data : {(LINE_BITS){1'bz}};
 
 endmodule // inst_cache_set
 
@@ -253,12 +257,12 @@ module evict_line_select #(
     localparam SIZE_BITS = $clog2(SET_SIZE);
 
     logic [SIZE_BITS-1:0] pos[SET_SIZE];
-    logic [SIZE_BITS-1:0] selected_pos;
+    wire [SIZE_BITS-1:0] selected_pos;
 
     genvar i;
     generate
         for (i = 0; i < SET_SIZE; i = i + 1) begin : selected_pos_loop
-            always_comb selected_pos = valid_match[i] ? pos[i] : {(SIZE_BITS){1'bz}};
+            assign selected_pos = valid_match[i] ? pos[i] : {(SIZE_BITS){1'bz}};
         end
 
         for (i = 0; i < SET_SIZE; i = i + 1) begin : evict_loop
